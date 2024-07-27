@@ -1,0 +1,34 @@
+
+> globe@1.0.0 build
+> esbuild ./src/index.js --bundle --outfile=public/bundle.js --loader:.js=jsx
+
+[1G[0K[1m > src/globe.js:87:12: [31merror: [0m[1m"THREE" has already been declared
+[0m[37m    87 │ import * as [32mTHREE[37m from "three"
+       ╵             [32m~~~~~[37m
+[0m[0m   src/globe.js:1:12: [1mnote: [0m"THREE" was originally declared here
+[0m[37m     1 │ import * as [32mTHREE[37m from "three"
+       ╵             [32m~~~~~[37m
+[0m
+[1m > src/globe.js:88:9: [31merror: [0m[1m"OrbitControls" has already been declared
+[0m[37m    88 │ import { [32mOrbitControls[37m } from "three/examples/jsm/controls/OrbitCo...
+       ╵          [32m~~~~~~~~~~~~~[37m
+[0m[0m   src/globe.js:2:9: [1mnote: [0m"OrbitControls" was originally declared here
+[0m[37m     2 │ import { [32mOrbitControls[37m } from "three/examples/jsm/controls/OrbitCo...
+       ╵          [32m~~~~~~~~~~~~~[37m
+[0m
+[1m > src/globe.js:90:16: [31merror: [0m[1mMultiple exports with the same name "createGlobe"
+[0m[37m    90 │ export function [32mcreateGlobe[37m(container, dataPoints) {
+       ╵                 [32m~~~~~~~~~~~[37m
+[0m[0m   src/globe.js:4:16: [1mnote: [0m"createGlobe" was originally exported here
+[0m[37m     4 │ export function [32mcreateGlobe[37m(container, dataPoints) {
+       ╵                 [32m~~~~~~~~~~~[37m
+[0m
+3 errors
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m Lifecycle script `build` failed with error:
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mcode[39m [33m1[39m
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mpath[39m /media/ssd/code/devmode/globe/apps/globe
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mworkspace[39m globe@1.0.0
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mlocation[39m /media/ssd/code/devmode/globe/apps/globe
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m command failed
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mcommand[39m sh -c esbuild ./src/index.js --bundle --outfile=public/bundle.js --loader:.js=jsx
+[1G[0K⠙[1G[0K

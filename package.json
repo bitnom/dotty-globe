@@ -1,0 +1,11 @@
+{
+  "name": "globe",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "devDependencies": {
+    "turbo": "^2.0.9"
+  },
+  "packageManager": "npm@9.6.7"
+}
