@@ -1,7 +1,7 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 
-export const createGlobe = (container, dataPoints = []) => {
+export const createGlobe = (container, initialDataPoints = []) => {
   const scene = new THREE.Scene()
 
   const camera = new THREE.PerspectiveCamera(
@@ -23,104 +23,200 @@ export const createGlobe = (container, dataPoints = []) => {
 
   const textureLoader = new THREE.TextureLoader()
   const earthTexture = textureLoader.load("img/map.png")
-  const bumpMap = textureLoader.load("img/map_inverted.png")
-  const glowTexture = textureLoader.load("img/earth-glow2.jpg")
-  const dotTexture = textureLoader.load("img/dot-inverted.png")
+  const bumpMap = textureLoader.load(
+    "img/map_inverted.png",
+    (bumpMapTexture) => {
+      const glowTexture = textureLoader.load("img/earth-glow2.jpg")
 
-  const globeGeometry = new THREE.SphereGeometry(100, 50, 50)
-  const globeMaterial = new THREE.MeshPhongMaterial({
-    map: earthTexture,
-    bumpMap: bumpMap,
-    bumpScale: 0.1,
-    specular: new THREE.Color("blue"),
-    shininess: 10,
-    transparent: true,
-    opacity: 0.9,
-  })
-  const globe = new THREE.Mesh(globeGeometry, globeMaterial)
-  scene.add(globe)
+      const globeGeometry = new THREE.SphereGeometry(100, 50, 50)
+      const globeMaterial = new THREE.MeshPhongMaterial({
+        map: earthTexture,
+        bumpScale: 0.2,
+        specular: new THREE.Color("blue"),
+        shininess: 5,
+        transparent: true,
+        opacity: 0.8,
+      })
+      const globe = new THREE.Mesh(globeGeometry, globeMaterial)
+      scene.add(globe)
 
-  const glowMaterial = new THREE.SpriteMaterial({
-    map: glowTexture,
-    color: new THREE.Color(0x00aaff),
-    blending: THREE.AdditiveBlending,
-    transparent: true,
-    opacity: 0.5,
-  })
-  const glowSprite = new THREE.Sprite(glowMaterial)
-  glowSprite.scale.set(250, 250, 1)
-  globe.add(glowSprite)
+      const ambientLight = new THREE.AmbientLight(0x00aaff, 0.1)
+      scene.add(ambientLight)
 
-  const colorBase = new THREE.Color(0x00aaff)
-  const lightShieldIntensity = 1.0
-  const lightShieldDistance = 1000
-  const lightShieldDecay = 2.0
+      const glowMaterial = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: new THREE.Color(0x00aaff),
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 1,
+      })
+      const glowSprite = new THREE.Sprite(glowMaterial)
+      glowSprite.scale.set(250, 250, 1)
+      globe.add(glowSprite)
 
-  const lightShield1 = new THREE.PointLight(
-    colorBase,
-    lightShieldIntensity,
-    lightShieldDistance,
-    lightShieldDecay
-  )
-  lightShield1.position.set(-50, 150, 75)
-  scene.add(lightShield1)
+      const colorBase = new THREE.Color(0x00aaff)
+      const lightShieldIntensity = 1.0
+      const lightShieldDistance = 1000
+      const lightShieldDecay = 2.0
 
-  const lightShield2 = new THREE.PointLight(
-    colorBase,
-    lightShieldIntensity,
-    lightShieldDistance,
-    lightShieldDecay
-  )
-  lightShield2.position.set(100, 50, 50)
-  scene.add(lightShield2)
+      const lightShield1 = new THREE.PointLight(
+        colorBase,
+        lightShieldIntensity,
+        lightShieldDistance,
+        lightShieldDecay
+      )
+      lightShield1.position.set(-50, 150, 75)
+      scene.add(lightShield1)
 
-  const lightShield3 = new THREE.PointLight(
-    colorBase,
-    lightShieldIntensity,
-    lightShieldDistance,
-    lightShieldDecay
-  )
-  lightShield3.position.set(0, -300, 50)
-  scene.add(lightShield3)
+      const lightShield2 = new THREE.PointLight(
+        colorBase,
+        lightShieldIntensity,
+        lightShieldDistance,
+        lightShieldDecay
+      )
+      lightShield2.position.set(100, 50, 50)
+      scene.add(lightShield2)
 
-  const dataPointsGroup = new THREE.Group()
-  globe.add(dataPointsGroup)
+      const lightShield3 = new THREE.PointLight(
+        colorBase,
+        lightShieldIntensity,
+        lightShieldDistance,
+        lightShieldDecay
+      )
+      lightShield3.position.set(0, -300, 50)
+      scene.add(lightShield3)
 
-  dataPoints.forEach((point) => {
-    const { coordinate, intensity } = point
-    const [lat, long] = coordinate
+      const dataPointsGroup = new THREE.Group()
+      globe.add(dataPointsGroup)
 
-    const { x, y, z } = latLongToXYZ(lat, long, 100)
+      let globeCloud
 
-    const spikeHeight = intensity * 30
-    const spike = createSpike(spikeHeight, intensity, x, y, z)
-    dataPointsGroup.add(spike)
+      const updateDataPoints = (dataPoints) => {
+        while (dataPointsGroup.children.length) {
+          dataPointsGroup.remove(dataPointsGroup.children[0])
+        }
 
-    const ringPulse = createRingPulse(intensity, x, y, z)
-    dataPointsGroup.add(ringPulse)
-  })
+        dataPoints.forEach((point) => {
+          const { coordinate, intensity } = point
+          const [lat, long] = coordinate
 
-  const animate = () => {
-    requestAnimationFrame(animate)
-    globe.rotation.y += 0.002
-    dataPointsGroup.children.forEach((child) => {
-      if (child.name === "ringPulse") {
-        child.rotation.z += 0.01
+          const { x, y, z } = latLongToXYZ(lat, long, 100)
+
+          const spikeHeight = intensity * 30
+          const spike = createSpike(spikeHeight, intensity, x, y, z)
+          dataPointsGroup.add(spike)
+
+          const ringPulse = createRingPulse(intensity, x, y, z)
+          dataPointsGroup.add(ringPulse)
+        })
       }
-    })
-    controls.update()
-    renderer.render(scene, camera)
-  }
 
-  const onWindowResize = () => {
-    camera.aspect = window.innerWidth / window.innerHeight
-    camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
-  }
+      const updateDots = (image) => {
+        if (globeCloud) {
+          globe.remove(globeCloud)
+        }
 
-  window.addEventListener("resize", onWindowResize, false)
+        const globeCloudVerticesArray = []
+        const canvas = document.createElement("canvas")
+        canvas.width = image.width
+        canvas.height = image.height
+        const context = canvas.getContext("2d")
+        context.drawImage(image, 0, 0, image.width, image.height)
 
-  animate()
+        const imageData = context.getImageData(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        )
+
+        for (let i = 0; i < imageData.data.length; i += 4) {
+          const x = (i / 4) % canvas.width
+          const y = (i / 4 - x) / canvas.width
+          if ((i / 4) % 2 === 1 && y % 2 === 1) {
+            const alpha = imageData.data[i]
+            if (alpha === 0) {
+              const lat = (y / (canvas.height / 180) - 90) / -1
+              const long = x / (canvas.width / 360) - 180
+              const position = latLongToXYZ(lat, long, 100)
+              globeCloudVerticesArray.push(position)
+            }
+          }
+        }
+
+        const globeCloudBufferGeometry = new THREE.BufferGeometry()
+        const positions = new Float32Array(3 * globeCloudVerticesArray.length)
+        for (let i = 0; i < globeCloudVerticesArray.length; i++) {
+          positions[3 * i] = globeCloudVerticesArray[i].x
+          positions[3 * i + 1] = globeCloudVerticesArray[i].y
+          positions[3 * i + 2] = globeCloudVerticesArray[i].z
+        }
+        globeCloudBufferGeometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(positions, 3)
+        )
+
+        const colors = new Float32Array(3 * globeCloudVerticesArray.length)
+        for (let i = 0; i < globeCloudVerticesArray.length; i++) {
+          const color = new THREE.Color(0x00aaff)
+          colors[3 * i] = color.r
+          colors[3 * i + 1] = color.g
+          colors[3 * i + 2] = color.b
+        }
+        globeCloudBufferGeometry.setAttribute(
+          "color",
+          new THREE.BufferAttribute(colors, 3)
+        )
+
+        const globeCloudMaterial = new THREE.PointsMaterial({
+          size: 0.75,
+          fog: true,
+          vertexColors: true,
+          depthWrite: false,
+        })
+
+        globeCloud = new THREE.Points(
+          globeCloudBufferGeometry,
+          globeCloudMaterial
+        )
+        globeCloud.sortParticles = true
+        globeCloud.name = "globeCloud"
+        globe.add(globeCloud)
+      }
+
+      const animate = () => {
+        requestAnimationFrame(animate)
+        globe.rotation.y += 0.002
+        dataPointsGroup.children.forEach((child) => {
+          if (child.name === "ringPulse") {
+            child.rotation.z += 0.01
+          }
+        })
+        controls.update()
+        renderer.render(scene, camera)
+      }
+
+      const onWindowResize = () => {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+      }
+
+      window.addEventListener("resize", onWindowResize, false)
+
+      updateDataPoints(initialDataPoints)
+      updateDots(bumpMapTexture.image)
+      animate()
+
+      container.updateData = (newDataPoints) => {
+        updateDataPoints(newDataPoints)
+      }
+
+      container.updateDots = (newImage) => {
+        updateDots(newImage)
+      }
+    }
+  )
 }
 
 const latLongToXYZ = (lat, long, radius) => {
@@ -135,7 +231,7 @@ const latLongToXYZ = (lat, long, radius) => {
 }
 
 const createSpike = (height, intensity, x, y, z) => {
-  const geometry = new THREE.CylinderGeometry(0.2, 0.2, height, 32)
+  const geometry = new THREE.CylinderGeometry(0.1, 0.2, height, 32)
   const material = new THREE.MeshBasicMaterial({
     color: new THREE.Color(0xff0000).multiplyScalar(intensity),
     transparent: true,
@@ -192,4 +288,64 @@ const createGlowTexture = () => {
   context.fillRect(0, 0, canvas.width, canvas.height)
 
   return new THREE.CanvasTexture(canvas)
+}
+
+const addDotsToGlobe = (earthObject, globeCloudVerticesArray, image) => {
+  const canvas = document.createElement("canvas")
+  canvas.width = image.width
+  canvas.height = image.height
+  const context = canvas.getContext("2d")
+  context.drawImage(image, 0, 0, image.width, image.height)
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    const x = (i / 4) % canvas.width
+    const y = (i / 4 - x) / canvas.width
+    if ((i / 4) % 2 === 1 && y % 2 === 1) {
+      const alpha = imageData.data[i]
+      if (alpha === 0) {
+        const lat = (y / (canvas.height / 180) - 90) / -1
+        const long = x / (canvas.width / 360) - 180
+        const position = latLongToXYZ(lat, long, 100)
+        globeCloudVerticesArray.push(position)
+      }
+    }
+  }
+
+  const globeCloudBufferGeometry = new THREE.BufferGeometry()
+  const positions = new Float32Array(3 * globeCloudVerticesArray.length)
+  for (let i = 0; i < globeCloudVerticesArray.length; i++) {
+    positions[3 * i] = globeCloudVerticesArray[i].x
+    positions[3 * i + 1] = globeCloudVerticesArray[i].y
+    positions[3 * i + 2] = globeCloudVerticesArray[i].z
+  }
+  globeCloudBufferGeometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(positions, 3)
+  )
+
+  const colors = new Float32Array(3 * globeCloudVerticesArray.length)
+  for (let i = 0; i < globeCloudVerticesArray.length; i++) {
+    const color = new THREE.Color(0x00aaff)
+    colors[3 * i] = color.r
+    colors[3 * i + 1] = color.g
+    colors[3 * i + 2] = color.b
+  }
+  globeCloudBufferGeometry.setAttribute(
+    "color",
+    new THREE.BufferAttribute(colors, 3)
+  )
+
+  const globeCloudMaterial = new THREE.PointsMaterial({
+    size: 0.75,
+    fog: true,
+    vertexColors: true,
+    depthWrite: false,
+  })
+
+  globeCloud = new THREE.Points(globeCloudBufferGeometry, globeCloudMaterial)
+  globeCloud.sortParticles = true
+  globeCloud.name = "globeCloud"
+  earthObject.add(globeCloud)
 }
