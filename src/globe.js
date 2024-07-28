@@ -21,23 +21,70 @@ export const createGlobe = (container, dataPoints = []) => {
   controls.dampingFactor = 0.25
   controls.enableZoom = true
 
+  const textureLoader = new THREE.TextureLoader()
+  const earthTexture = textureLoader.load("img/map.png")
+  const bumpMap = textureLoader.load("img/map_inverted.png")
+  const glowTexture = textureLoader.load("img/earth-glow2.jpg")
+  const dotTexture = textureLoader.load("img/dot-inverted.png")
+
   const globeGeometry = new THREE.SphereGeometry(100, 50, 50)
   const globeMaterial = new THREE.MeshPhongMaterial({
-    map: new THREE.TextureLoader().load("img/earth-day.jpg"),
-    bumpScale: 0.05,
-    specular: new THREE.Color("grey"),
+    map: earthTexture,
+    bumpMap: bumpMap,
+    bumpScale: 0.1,
+    specular: new THREE.Color("blue"),
+    shininess: 10,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.9,
   })
   const globe = new THREE.Mesh(globeGeometry, globeMaterial)
   scene.add(globe)
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1))
+  const glowMaterial = new THREE.SpriteMaterial({
+    map: glowTexture,
+    color: new THREE.Color(0x00aaff),
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    opacity: 0.5,
+  })
+  const glowSprite = new THREE.Sprite(glowMaterial)
+  glowSprite.scale.set(250, 250, 1)
+  globe.add(glowSprite)
+
+  const colorBase = new THREE.Color(0x00aaff)
+  const lightShieldIntensity = 1.0
+  const lightShieldDistance = 1000
+  const lightShieldDecay = 2.0
+
+  const lightShield1 = new THREE.PointLight(
+    colorBase,
+    lightShieldIntensity,
+    lightShieldDistance,
+    lightShieldDecay
+  )
+  lightShield1.position.set(-50, 150, 75)
+  scene.add(lightShield1)
+
+  const lightShield2 = new THREE.PointLight(
+    colorBase,
+    lightShieldIntensity,
+    lightShieldDistance,
+    lightShieldDecay
+  )
+  lightShield2.position.set(100, 50, 50)
+  scene.add(lightShield2)
+
+  const lightShield3 = new THREE.PointLight(
+    colorBase,
+    lightShieldIntensity,
+    lightShieldDistance,
+    lightShieldDecay
+  )
+  lightShield3.position.set(0, -300, 50)
+  scene.add(lightShield3)
 
   const dataPointsGroup = new THREE.Group()
   globe.add(dataPointsGroup)
-
-  const glowTexture = new THREE.CanvasTexture(createGlowCanvas())
 
   dataPoints.forEach((point) => {
     const { coordinate, intensity } = point
@@ -45,17 +92,22 @@ export const createGlobe = (container, dataPoints = []) => {
 
     const { x, y, z } = latLongToXYZ(lat, long, 100)
 
-    const pillarHeight = intensity * 30
-    const pillar = createPillar(pillarHeight, intensity, x, y, z)
-    dataPointsGroup.add(pillar)
+    const spikeHeight = intensity * 30
+    const spike = createSpike(spikeHeight, intensity, x, y, z)
+    dataPointsGroup.add(spike)
 
-    const glowSprite = createGlowSprite(glowTexture, intensity, x, y, z)
-    dataPointsGroup.add(glowSprite)
+    const ringPulse = createRingPulse(intensity, x, y, z)
+    dataPointsGroup.add(ringPulse)
   })
 
   const animate = () => {
     requestAnimationFrame(animate)
     globe.rotation.y += 0.002
+    dataPointsGroup.children.forEach((child) => {
+      if (child.name === "ringPulse") {
+        child.rotation.z += 0.01
+      }
+    })
     controls.update()
     renderer.render(scene, camera)
   }
@@ -71,19 +123,6 @@ export const createGlobe = (container, dataPoints = []) => {
   animate()
 }
 
-const createGlowCanvas = () => {
-  const canvas = document.createElement("canvas")
-  canvas.width = 64
-  canvas.height = 64
-  const ctx = canvas.getContext("2d")
-  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
-  gradient.addColorStop(0, "rgba(255, 0, 0, 1)")
-  gradient.addColorStop(1, "rgba(255, 0, 0, 0)")
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, 64, 64)
-  return canvas
-}
-
 const latLongToXYZ = (lat, long, radius) => {
   const phi = (90 - lat) * (Math.PI / 180)
   const theta = (long + 180) * (Math.PI / 180)
@@ -95,36 +134,62 @@ const latLongToXYZ = (lat, long, radius) => {
   }
 }
 
-const createPillar = (height, intensity, x, y, z) => {
-  const geometry = new THREE.CylinderGeometry(0.1, 0.1, height, 32)
+const createSpike = (height, intensity, x, y, z) => {
+  const geometry = new THREE.CylinderGeometry(0.2, 0.2, height, 32)
   const material = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(1, 0, 0).multiplyScalar(intensity),
+    color: new THREE.Color(0xff0000).multiplyScalar(intensity),
     transparent: true,
     opacity: 0.6,
   })
-  const pillar = new THREE.Mesh(geometry, material)
+  const spike = new THREE.Mesh(geometry, material)
 
-  pillar.position.set(x, y, z)
-  pillar.lookAt(new THREE.Vector3(x, y, z).multiplyScalar(2))
-  pillar.rotateX(Math.PI / 2)
-  pillar.translateY(height / 2)
+  spike.position.set(x, y, z)
+  spike.lookAt(new THREE.Vector3(x, y, z).multiplyScalar(2))
+  spike.rotateX(Math.PI / 2)
+  spike.translateY(height / 2)
 
-  return pillar
+  return spike
 }
 
-const createGlowSprite = (texture, intensity, x, y, z) => {
-  const material = new THREE.SpriteMaterial({
-    map: texture,
-    color: 0xff0000,
+const createRingPulse = (intensity, x, y, z) => {
+  const ringGeometry = new THREE.RingGeometry(0.2, 0.5 + 3 * intensity, 32)
+  const ringMaterial = new THREE.MeshBasicMaterial({
+    map: createGlowTexture(),
+    color: new THREE.Color(0xff0000).multiplyScalar(intensity),
     transparent: true,
     blending: THREE.AdditiveBlending,
-    opacity: 0.8,
-    depthTest: false,
-    depthWrite: false,
+    side: THREE.DoubleSide,
+    opacity: 0.6,
   })
-  const sprite = new THREE.Sprite(material)
-  sprite.scale.set(10 * intensity, 10 * intensity, 1)
-  sprite.position.set(x, y, z)
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial)
 
-  return sprite
+  ring.position.set(x, y, z)
+  ring.lookAt(new THREE.Vector3(0, 0, 0))
+  ring.name = "ringPulse"
+
+  return ring
+}
+
+const createGlowTexture = () => {
+  const canvas = document.createElement("canvas")
+  canvas.width = 64
+  canvas.height = 64
+  const context = canvas.getContext("2d")
+
+  const gradient = context.createRadialGradient(
+    canvas.width / 2,
+    canvas.height / 2,
+    0,
+    canvas.width / 2,
+    canvas.height / 2,
+    canvas.width / 2
+  )
+  gradient.addColorStop(0, "rgba(255, 0, 0, 1)")
+  gradient.addColorStop(0.5, "rgba(255, 0, 0, 0.5)")
+  gradient.addColorStop(1, "rgba(0, 170, 255, 0)")
+
+  context.fillStyle = gradient
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  return new THREE.CanvasTexture(canvas)
 }
