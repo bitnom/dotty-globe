@@ -6,7 +6,7 @@
         "dist/**"
       ]
     },
-    "start": {
+    "serve": {
       "dependsOn": [
         "build"
       ],

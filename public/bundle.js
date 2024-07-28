@@ -1,5 +1,5 @@
 (() => {
-  // ../../node_modules/three/build/three.module.js
+  // node_modules/three/build/three.module.js
   var REVISION = "132";
   var MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
   var TOUCH = { ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 };
@@ -16653,6 +16653,128 @@
     }
   };
   DepthTexture.prototype.isDepthTexture = true;
+  var CylinderGeometry = class extends BufferGeometry {
+    constructor(radiusTop = 1, radiusBottom = 1, height = 1, radialSegments = 8, heightSegments = 1, openEnded = false, thetaStart = 0, thetaLength = Math.PI * 2) {
+      super();
+      this.type = "CylinderGeometry";
+      this.parameters = {
+        radiusTop,
+        radiusBottom,
+        height,
+        radialSegments,
+        heightSegments,
+        openEnded,
+        thetaStart,
+        thetaLength
+      };
+      const scope = this;
+      radialSegments = Math.floor(radialSegments);
+      heightSegments = Math.floor(heightSegments);
+      const indices = [];
+      const vertices = [];
+      const normals = [];
+      const uvs = [];
+      let index = 0;
+      const indexArray = [];
+      const halfHeight = height / 2;
+      let groupStart = 0;
+      generateTorso();
+      if (openEnded === false) {
+        if (radiusTop > 0)
+          generateCap(true);
+        if (radiusBottom > 0)
+          generateCap(false);
+      }
+      this.setIndex(indices);
+      this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+      this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+      this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+      function generateTorso() {
+        const normal = new Vector3();
+        const vertex = new Vector3();
+        let groupCount = 0;
+        const slope = (radiusBottom - radiusTop) / height;
+        for (let y = 0; y <= heightSegments; y++) {
+          const indexRow = [];
+          const v = y / heightSegments;
+          const radius = v * (radiusBottom - radiusTop) + radiusTop;
+          for (let x = 0; x <= radialSegments; x++) {
+            const u = x / radialSegments;
+            const theta = u * thetaLength + thetaStart;
+            const sinTheta = Math.sin(theta);
+            const cosTheta = Math.cos(theta);
+            vertex.x = radius * sinTheta;
+            vertex.y = -v * height + halfHeight;
+            vertex.z = radius * cosTheta;
+            vertices.push(vertex.x, vertex.y, vertex.z);
+            normal.set(sinTheta, slope, cosTheta).normalize();
+            normals.push(normal.x, normal.y, normal.z);
+            uvs.push(u, 1 - v);
+            indexRow.push(index++);
+          }
+          indexArray.push(indexRow);
+        }
+        for (let x = 0; x < radialSegments; x++) {
+          for (let y = 0; y < heightSegments; y++) {
+            const a = indexArray[y][x];
+            const b = indexArray[y + 1][x];
+            const c = indexArray[y + 1][x + 1];
+            const d = indexArray[y][x + 1];
+            indices.push(a, b, d);
+            indices.push(b, c, d);
+            groupCount += 6;
+          }
+        }
+        scope.addGroup(groupStart, groupCount, 0);
+        groupStart += groupCount;
+      }
+      function generateCap(top) {
+        const centerIndexStart = index;
+        const uv = new Vector2();
+        const vertex = new Vector3();
+        let groupCount = 0;
+        const radius = top === true ? radiusTop : radiusBottom;
+        const sign2 = top === true ? 1 : -1;
+        for (let x = 1; x <= radialSegments; x++) {
+          vertices.push(0, halfHeight * sign2, 0);
+          normals.push(0, sign2, 0);
+          uvs.push(0.5, 0.5);
+          index++;
+        }
+        const centerIndexEnd = index;
+        for (let x = 0; x <= radialSegments; x++) {
+          const u = x / radialSegments;
+          const theta = u * thetaLength + thetaStart;
+          const cosTheta = Math.cos(theta);
+          const sinTheta = Math.sin(theta);
+          vertex.x = radius * sinTheta;
+          vertex.y = halfHeight * sign2;
+          vertex.z = radius * cosTheta;
+          vertices.push(vertex.x, vertex.y, vertex.z);
+          normals.push(0, sign2, 0);
+          uv.x = cosTheta * 0.5 + 0.5;
+          uv.y = sinTheta * 0.5 * sign2 + 0.5;
+          uvs.push(uv.x, uv.y);
+          index++;
+        }
+        for (let x = 0; x < radialSegments; x++) {
+          const c = centerIndexStart + x;
+          const i = centerIndexEnd + x;
+          if (top === true) {
+            indices.push(i, i + 1, c);
+          } else {
+            indices.push(i + 1, i, c);
+          }
+          groupCount += 3;
+        }
+        scope.addGroup(groupStart, groupCount, top === true ? 1 : 2);
+        groupStart += groupCount;
+      }
+    }
+    static fromJSON(data) {
+      return new CylinderGeometry(data.radiusTop, data.radiusBottom, data.height, data.radialSegments, data.heightSegments, data.openEnded, data.thetaStart, data.thetaLength);
+    }
+  };
   var _v0 = new Vector3();
   var _v1$1 = new Vector3();
   var _normal = new Vector3();
@@ -24135,7 +24257,7 @@
     }
   }
 
-  // ../../node_modules/three/examples/jsm/controls/OrbitControls.js
+  // node_modules/three/examples/jsm/controls/OrbitControls.js
   var _changeEvent = { type: "change" };
   var _startEvent = { type: "start" };
   var _endEvent = { type: "end" };
@@ -24808,7 +24930,7 @@
   };
 
   // src/globe.js
-  function createGlobe(container, dataPoints2) {
+  var createGlobe = (container, dataPoints2 = []) => {
     const scene = new Scene();
     const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1e3);
     camera.position.set(0, 0, 200);
@@ -24819,42 +24941,202 @@
     controls.enableDamping = true;
     controls.dampingFactor = 0.25;
     controls.enableZoom = true;
-    controls.update();
     const globeGeometry = new SphereGeometry(100, 50, 50);
     const globeMaterial = new MeshPhongMaterial({
-      map: new TextureLoader().load("earth-day.jpg"),
+      map: new TextureLoader().load("img/earth-day.jpg"),
       bumpScale: 0.05,
       specular: new Color("grey"),
       transparent: true,
-      opacity: 0.3,
-      blending: NormalBlending,
-      depthWrite: false
+      opacity: 0.8
     });
-    globeMaterial.emissiveIntensity = 0.1;
-    globeMaterial.shininess = 0.7;
     const globe = new Mesh(globeGeometry, globeMaterial);
     scene.add(globe);
-    const ambientLight = new AmbientLight(16777215, 1);
-    scene.add(ambientLight);
-    function animate() {
+    scene.add(new AmbientLight(16777215, 1));
+    const dataPointsGroup = new Group();
+    globe.add(dataPointsGroup);
+    const glowTexture = new CanvasTexture(createGlowCanvas());
+    dataPoints2.forEach((point) => {
+      const { coordinate, intensity } = point;
+      const [lat, long] = coordinate;
+      const { x, y, z } = latLongToXYZ(lat, long, 100);
+      const pillarHeight = intensity * 30;
+      const pillar = createPillar(pillarHeight, intensity, x, y, z);
+      dataPointsGroup.add(pillar);
+      const glowSprite = createGlowSprite(glowTexture, intensity, x, y, z);
+      dataPointsGroup.add(glowSprite);
+    });
+    const animate = () => {
       requestAnimationFrame(animate);
       globe.rotation.y += 2e-3;
       controls.update();
       renderer.render(scene, camera);
-    }
-    function onWindowResize() {
+    };
+    const onWindowResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-    }
+    };
     window.addEventListener("resize", onWindowResize, false);
     animate();
-  }
+  };
+  var createGlowCanvas = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gradient.addColorStop(0, "rgba(255, 0, 0, 1)");
+    gradient.addColorStop(1, "rgba(255, 0, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 64, 64);
+    return canvas;
+  };
+  var latLongToXYZ = (lat, long, radius) => {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (long + 180) * (Math.PI / 180);
+    return {
+      x: -radius * Math.sin(phi) * Math.cos(theta),
+      y: radius * Math.cos(phi),
+      z: radius * Math.sin(phi) * Math.sin(theta)
+    };
+  };
+  var createPillar = (height, intensity, x, y, z) => {
+    const geometry = new CylinderGeometry(0.1, 0.1, height, 32);
+    const material = new MeshBasicMaterial({
+      color: new Color(1, 0, 0).multiplyScalar(intensity),
+      transparent: true,
+      opacity: 0.6
+    });
+    const pillar = new Mesh(geometry, material);
+    pillar.position.set(x, y, z);
+    pillar.lookAt(new Vector3(x, y, z).multiplyScalar(2));
+    pillar.rotateX(Math.PI / 2);
+    pillar.translateY(height / 2);
+    return pillar;
+  };
+  var createGlowSprite = (texture, intensity, x, y, z) => {
+    const material = new SpriteMaterial({
+      map: texture,
+      color: 16711680,
+      transparent: true,
+      blending: AdditiveBlending,
+      opacity: 0.8,
+      depthTest: false,
+      depthWrite: false
+    });
+    const sprite = new Sprite(material);
+    sprite.scale.set(10 * intensity, 10 * intensity, 1);
+    sprite.position.set(x, y, z);
+    return sprite;
+  };
 
   // src/index.js
   var dataPoints = [
-    { key: "1", label: "Point 1", lat: 37.7749, long: -122.4194, intensity: 10 },
-    { key: "2", label: "Point 2", lat: 51.5074, long: -0.1278, intensity: 20 }
+    {
+      label: "Perth",
+      key: "p3",
+      metadata: {},
+      coordinate: [-31.9514, 115.8617],
+      intensity: 0.2
+    },
+    {
+      label: "San Francisco",
+      key: "sf",
+      metadata: {},
+      coordinate: [37.7749, -122.4194],
+      intensity: 0.8
+    },
+    {
+      label: "New York",
+      key: "ny",
+      metadata: {},
+      coordinate: [40.7128, -74.006],
+      intensity: 0.5
+    },
+    {
+      label: "London",
+      key: "ldn",
+      metadata: {},
+      coordinate: [51.5074, -0.1278],
+      intensity: 0.4
+    },
+    {
+      label: "Tokyo",
+      key: "tk",
+      metadata: {},
+      coordinate: [35.6895, 139.6917],
+      intensity: 0.9
+    },
+    {
+      label: "Sydney",
+      key: "syd",
+      metadata: {},
+      coordinate: [-33.8688, 151.2093],
+      intensity: 0.6
+    },
+    {
+      label: "Paris",
+      key: "par",
+      metadata: {},
+      coordinate: [48.8566, 2.3522],
+      intensity: 0.7
+    },
+    {
+      label: "Berlin",
+      key: "ber",
+      metadata: {},
+      coordinate: [52.52, 13.405],
+      intensity: 0.5
+    },
+    {
+      label: "Moscow",
+      key: "msk",
+      metadata: {},
+      coordinate: [55.7558, 37.6173],
+      intensity: 0.8
+    },
+    {
+      label: "Rio de Janeiro",
+      key: "rio",
+      metadata: {},
+      coordinate: [-22.9068, -43.1729],
+      intensity: 0.7
+    },
+    {
+      label: "Cape Town",
+      key: "cpt",
+      metadata: {},
+      coordinate: [-33.9249, 18.4241],
+      intensity: 0.4
+    },
+    {
+      label: "Mumbai",
+      key: "mum",
+      metadata: {},
+      coordinate: [19.076, 72.8777],
+      intensity: 0.2
+    },
+    {
+      label: "Beijing",
+      key: "bj",
+      metadata: {},
+      coordinate: [39.9042, 116.4074],
+      intensity: 0.9
+    },
+    {
+      label: "Singapore",
+      key: "sg",
+      metadata: {},
+      coordinate: [1.3521, 103.8198],
+      intensity: 0.7
+    },
+    {
+      label: "Hong Kong",
+      key: "hk",
+      metadata: {},
+      coordinate: [22.3193, 114.1694],
+      intensity: 0.8
+    }
   ];
   document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById("globe-container");
