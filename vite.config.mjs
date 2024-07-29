@@ -14,6 +14,7 @@ export default defineConfig({
         globals: {
           three: "THREE",
         },
+        assetFileNames: "assets/[name].[hash][extname]",
       },
     },
   },

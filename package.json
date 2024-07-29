@@ -2,11 +2,11 @@
   "name": "dotty-globe",
   "version": "1.0.0",
   "main": "dist/globe.umd.js",
-  "module": "dist/dotty-globe.es.js",
+  "module": "dist/globe.es.js",
   "exports": {
     ".": {
-      "import": "./dist/dotty-globe.es.js",
-      "require": "./dist/dotty-globe.umd.js"
+      "import": "./dist/globe.es.js",
+      "require": "./dist/globe.umd.js"
     }
   },
   "files": [

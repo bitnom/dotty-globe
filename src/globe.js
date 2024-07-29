@@ -1,22 +1,25 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
-
-const EARTH_TEXTURE_IMAGE = "img/map.png"
-const BUMP_MAP_IMAGE = "img/map_inverted.png"
+import earthTextureImage from "../public/img/map.png"
+import bumpMapImage from "../public/img/map_inverted.png"
 
 export const createGlobe = (container, initialDataPoints = []) => {
+  while (container.firstChild) {
+    container.removeChild(container.firstChild)
+  }
+
   const scene = new THREE.Scene()
 
   const camera = new THREE.PerspectiveCamera(
     75,
-    window.innerWidth / window.innerHeight,
+    container.clientWidth / container.clientHeight,
     0.1,
     1000,
   )
   camera.position.set(0, 0, 200)
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-  renderer.setSize(window.innerWidth, window.innerHeight)
+  renderer.setSize(container.clientWidth, container.clientHeight)
   renderer.setClearColor(0x000000, 0)
   container.appendChild(renderer.domElement)
 
@@ -26,8 +29,8 @@ export const createGlobe = (container, initialDataPoints = []) => {
   controls.enableZoom = true
 
   const textureLoader = new THREE.TextureLoader()
-  const earthTexture = textureLoader.load(EARTH_TEXTURE_IMAGE)
-  const bumpMap = textureLoader.load(BUMP_MAP_IMAGE, (bumpMapTexture) => {
+  const earthTexture = textureLoader.load(earthTextureImage)
+  const bumpMap = textureLoader.load(bumpMapImage, (bumpMapTexture) => {
     const globe = createGlobeMesh(earthTexture)
     globe.renderOrder = 1
     scene.add(globe)
@@ -39,6 +42,7 @@ export const createGlobe = (container, initialDataPoints = []) => {
     pointLights.forEach((light) => scene.add(light))
 
     const dataPointsGroup = new THREE.Group()
+    dataPointsGroup.name = "dataPointsGroup"
     globe.add(dataPointsGroup)
 
     let globeCloud
@@ -86,9 +90,9 @@ export const createGlobe = (container, initialDataPoints = []) => {
     }
 
     const onWindowResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight
+      camera.aspect = container.clientWidth / container.clientHeight
       camera.updateProjectionMatrix()
-      renderer.setSize(window.innerWidth, window.innerHeight)
+      renderer.setSize(container.clientWidth, container.clientHeight)
     }
 
     window.addEventListener("resize", onWindowResize, false)
@@ -96,15 +100,32 @@ export const createGlobe = (container, initialDataPoints = []) => {
     updateDataPoints(initialDataPoints)
     updateDots(bumpMapTexture.image)
     animate()
-
-    container.updateData = (newDataPoints) => {
-      updateDataPoints(newDataPoints)
-    }
-
-    container.updateDots = (newImage) => {
-      updateDots(newImage)
-    }
   })
+
+  return {
+    update: (newDataPoints) => {
+      const dataPointsGroup = scene.getObjectByName("dataPointsGroup")
+      if (dataPointsGroup) {
+        while (dataPointsGroup.children.length) {
+          dataPointsGroup.remove(dataPointsGroup.children[0])
+        }
+
+        newDataPoints.forEach((point) => {
+          const { coordinate, intensity } = point
+          const [lat, long] = coordinate
+
+          const { x, y, z } = latLongToXYZ(lat, long, 100)
+
+          const spikeHeight = intensity * 30
+          const spike = createSpike(spikeHeight, intensity, x, y, z)
+          dataPointsGroup.add(spike)
+
+          const ringPulse = createRingPulse(intensity, x, y, z)
+          dataPointsGroup.add(ringPulse)
+        })
+      }
+    },
+  }
 }
 
 const createGlobeMesh = (earthTexture) => {
