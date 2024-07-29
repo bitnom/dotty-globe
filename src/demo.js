@@ -6,7 +6,7 @@ const dataPoints = [
     key: "p3",
     metadata: {},
     coordinate: [-31.9514, 115.8617],
-    intensity: 0.2,
+    intensity: 0.9,
   },
   {
     label: "San Francisco",

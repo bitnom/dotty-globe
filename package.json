@@ -1,19 +1,30 @@
 {
-  "name": "globe-globe",
+  "name": "dotty-globe",
   "version": "1.0.0",
-  "main": "src/index.js",
+  "main": "dist/globe.umd.js",
+  "module": "dist/dotty-globe.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/dotty-globe.es.js",
+      "require": "./dist/dotty-globe.umd.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "esbuild ./src/index.js --bundle --outfile=public/bundle.js --loader:.js=jsx",
-    "serve": "http-server public",
-    "dev": "npm run build -- --watch"
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
   },
   "dependencies": {
     "three": "^0.132.2"
   },
   "devDependencies": {
-    "esbuild": "^0.12.15",
-    "http-server": "^14.0.0",
-    "turbo": "^2.0.9"
+    "prettier": "3.3.3",
+    "vite": "^5.3.5"
   },
-  "packageManager": "npm@9.6.7"
+  "peerDependencies": {
+    "three": "^0.132.2"
+  }
 }
