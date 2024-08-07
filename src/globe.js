@@ -3,7 +3,12 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 import earthTextureImage from "../public/img/map.png"
 import bumpMapImage from "../public/img/map_inverted.png"
 
-export const createGlobe = (container, initialDataPoints = []) => {
+export const createGlobe = (
+  container,
+  initialDataPoints = [],
+  globeColor = 0x00aaff,
+  spikeColor = 0xff0000,
+) => {
   while (container.firstChild) {
     container.removeChild(container.firstChild)
   }
@@ -31,18 +36,19 @@ export const createGlobe = (container, initialDataPoints = []) => {
   const textureLoader = new THREE.TextureLoader()
   const earthTexture = textureLoader.load(earthTextureImage)
   const bumpMap = textureLoader.load(bumpMapImage, (bumpMapTexture) => {
-    const globe = createGlobeMesh(earthTexture)
-    globe.renderOrder = 1
+    const globe = createGlobeMesh(earthTexture, globeColor)
+    globe.renderOrder = 10
     scene.add(globe)
 
-    const ambientLight = new THREE.AmbientLight(0x00aaff, 0.1)
+    const ambientLight = new THREE.AmbientLight(globeColor, 0.1)
     scene.add(ambientLight)
 
-    const pointLights = createPointLights()
+    const pointLights = createPointLights(globeColor)
     pointLights.forEach((light) => scene.add(light))
 
     const dataPointsGroup = new THREE.Group()
     dataPointsGroup.name = "dataPointsGroup"
+    dataPointsGroup.renderOrder = 15
     globe.add(dataPointsGroup)
 
     let globeCloud
@@ -59,10 +65,10 @@ export const createGlobe = (container, initialDataPoints = []) => {
         const { x, y, z } = latLongToXYZ(lat, long, 100)
 
         const spikeHeight = intensity * 30
-        const spike = createSpike(spikeHeight, intensity, x, y, z)
+        const spike = createSpike(spikeColor, spikeHeight, intensity, x, y, z)
         dataPointsGroup.add(spike)
 
-        const ringPulse = createRingPulse(intensity, x, y, z)
+        const ringPulse = createRingPulse(spikeColor, intensity, x, y, z)
         dataPointsGroup.add(ringPulse)
       })
     }
@@ -72,8 +78,8 @@ export const createGlobe = (container, initialDataPoints = []) => {
         globe.remove(globeCloud)
       }
 
-      globeCloud = createGlobeCloud(image)
-      globeCloud.renderOrder = 2
+      globeCloud = createGlobeCloud(image, globeColor)
+      globeCloud.renderOrder = 1
       globe.add(globeCloud)
     }
 
@@ -117,7 +123,7 @@ export const createGlobe = (container, initialDataPoints = []) => {
           const { x, y, z } = latLongToXYZ(lat, long, 100)
 
           const spikeHeight = intensity * 30
-          const spike = createSpike(spikeHeight, intensity, x, y, z)
+          const spike = createSpike(spikeColor, spikeHeight, intensity, x, y, z)
           dataPointsGroup.add(spike)
 
           const ringPulse = createRingPulse(intensity, x, y, z)
@@ -128,22 +134,22 @@ export const createGlobe = (container, initialDataPoints = []) => {
   }
 }
 
-const createGlobeMesh = (earthTexture) => {
+const createGlobeMesh = (earthTexture, specularColor) => {
   const globeGeometry = new THREE.SphereGeometry(100, 50, 50)
   const globeMaterial = new THREE.MeshPhongMaterial({
     map: earthTexture,
-    bumpScale: 0.2,
-    specular: new THREE.Color("blue"),
-    shininess: 5,
+    bumpScale: 10000,
+    specular: new THREE.Color(specularColor),
+    shininess: 1,
     transparent: true,
-    opacity: 0.8,
-    depthWrite: false,
+    opacity: 0.75,
+    depthWrite: true,
   })
   return new THREE.Mesh(globeGeometry, globeMaterial)
 }
 
-const createPointLights = () => {
-  const colorBase = new THREE.Color(0x00aaff)
+const createPointLights = (color) => {
+  const colorBase = new THREE.Color(color)
   const intensity = 1.0
   const distance = 1000
   const decay = 2.0
@@ -179,10 +185,10 @@ const latLongToXYZ = (lat, long, radius) => {
   }
 }
 
-const createSpike = (height, intensity, x, y, z) => {
+const createSpike = (color, height, intensity, x, y, z) => {
   const geometry = new THREE.CylinderGeometry(0.1, 0.2, height, 32)
   const material = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(0xff0000).multiplyScalar(intensity),
+    color: new THREE.Color(color).multiplyScalar(intensity),
     transparent: true,
     opacity: 0.6,
   })
@@ -196,11 +202,11 @@ const createSpike = (height, intensity, x, y, z) => {
   return spike
 }
 
-const createRingPulse = (intensity, x, y, z) => {
+const createRingPulse = (color, intensity, x, y, z) => {
   const ringGeometry = new THREE.RingGeometry(0.2, 0.5 + 3 * intensity, 32)
   const ringMaterial = new THREE.MeshBasicMaterial({
-    map: createGlowTexture(),
-    color: new THREE.Color(0xff0000).multiplyScalar(intensity),
+    map: createGlowTexture(color),
+    color: new THREE.Color(color).multiplyScalar(intensity),
     transparent: true,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
@@ -216,11 +222,16 @@ const createRingPulse = (intensity, x, y, z) => {
   return ring
 }
 
-const createGlowTexture = () => {
+const createGlowTexture = (color) => {
   const canvas = document.createElement("canvas")
   canvas.width = 64
   canvas.height = 64
   const context = canvas.getContext("2d")
+
+  const threeColor = new THREE.Color(color)
+  const r = Math.floor(threeColor.r * 255)
+  const g = Math.floor(threeColor.g * 255)
+  const b = Math.floor(threeColor.b * 255)
 
   const gradient = context.createRadialGradient(
     canvas.width / 2,
@@ -230,9 +241,9 @@ const createGlowTexture = () => {
     canvas.height / 2,
     canvas.width / 2,
   )
-  gradient.addColorStop(0, "rgba(255, 0, 0, 1)")
-  gradient.addColorStop(0.5, "rgba(255, 0, 0, 0.5)")
-  gradient.addColorStop(1, "rgba(0, 170, 255, 0)")
+  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`)
+  gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.5)`)
+  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
 
   context.fillStyle = gradient
   context.fillRect(0, 0, canvas.width, canvas.height)
@@ -240,7 +251,7 @@ const createGlowTexture = () => {
   return new THREE.CanvasTexture(canvas)
 }
 
-const createGlobeCloud = (image) => {
+const createGlobeCloud = (image, color) => {
   const globeCloudVerticesArray = []
   const canvas = document.createElement("canvas")
   canvas.width = image.width
@@ -301,11 +312,12 @@ const createGlobeCloud = (image) => {
 
   const globeCloudMaterial = new THREE.PointsMaterial({
     size: 0.75,
-    color: 0x00aaff,
+    color,
     fog: true,
     transparent: true,
     opacity: 0.8,
-    depthWrite: false,
+    depthWrite: true,
+    depthTest: true,
   })
 
   const globeCloud = new THREE.Points(
