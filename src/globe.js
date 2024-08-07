@@ -126,7 +126,7 @@ export const createGlobe = (
           const spike = createSpike(spikeColor, spikeHeight, intensity, x, y, z)
           dataPointsGroup.add(spike)
 
-          const ringPulse = createRingPulse(intensity, x, y, z)
+          const ringPulse = createRingPulse(spikeColor, intensity, x, y, z)
           dataPointsGroup.add(ringPulse)
         })
       }
@@ -138,12 +138,12 @@ const createGlobeMesh = (earthTexture, specularColor) => {
   const globeGeometry = new THREE.SphereGeometry(100, 50, 50)
   const globeMaterial = new THREE.MeshPhongMaterial({
     map: earthTexture,
-    bumpScale: 10000,
+    bumpScale: 0.2,
     specular: new THREE.Color(specularColor),
-    shininess: 1,
+    shininess: 1.5,
     transparent: true,
-    opacity: 0.75,
-    depthWrite: true,
+    opacity: 0.8,
+    depthWrite: false,
   })
   return new THREE.Mesh(globeGeometry, globeMaterial)
 }
@@ -191,6 +191,7 @@ const createSpike = (color, height, intensity, x, y, z) => {
     color: new THREE.Color(color).multiplyScalar(intensity),
     transparent: true,
     opacity: 0.6,
+    depthWrite: true,
   })
   const spike = new THREE.Mesh(geometry, material)
 
@@ -211,6 +212,7 @@ const createRingPulse = (color, intensity, x, y, z) => {
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     opacity: 0.6,
+    depthWrite: true,
   })
   const ring = new THREE.Mesh(ringGeometry, ringMaterial)
 
@@ -260,7 +262,7 @@ const createGlobeCloud = (image, color) => {
   context.drawImage(image, 0, 0, image.width, image.height)
 
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-  const totalPoints = 75000
+  const totalPoints = 15_000
   const phi = Math.PI * (3 - Math.sqrt(5))
 
   for (let i = 0; i < totalPoints; i++) {
@@ -311,13 +313,12 @@ const createGlobeCloud = (image, color) => {
   )
 
   const globeCloudMaterial = new THREE.PointsMaterial({
-    size: 0.75,
+    size: 1.5,
     color,
-    fog: true,
-    transparent: true,
-    opacity: 0.8,
     depthWrite: true,
     depthTest: true,
+    transparent: true,
+    opacity: 0.5,
   })
 
   const globeCloud = new THREE.Points(
