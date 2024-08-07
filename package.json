@@ -1,6 +1,15 @@
 {
   "name": "dotty-globe",
+  "description": "A simple globe visualization using ThreeJS. The globe can be used to display data points on a 3D globe.",
+  "author": "Blair Jordan",
+  "license": "MIT",
+  "keywords": [
+    "threejs",
+    "globe",
+    "visualization"
+  ],
   "version": "1.0.0",
+  "repository": "https://github.com/blairjordan/dotty-globe",
   "main": "dist/globe.umd.js",
   "module": "dist/globe.es.js",
   "exports": {
