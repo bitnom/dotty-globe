@@ -6,6 +6,10 @@ import bumpMapImage from "../public/img/map_inverted.png"
 export const createGlobe = (
   container,
   initialDataPoints = [],
+  fpsTarget = 20,
+  points = 50_000,
+  pointSize = 0.75,
+  pixelScale = 0.75,
   globeColor = 0x00aaff,
   spikeColor = 0xff0000,
 ) => {
@@ -23,9 +27,16 @@ export const createGlobe = (
   )
   camera.position.set(0, 0, 200)
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    shadowMap: false,
+  })
+
   renderer.setSize(container.clientWidth, container.clientHeight)
   renderer.setClearColor(0x000000, 0)
+  renderer.setPixelRatio(window.devicePixelRatio * pixelScale)
+
   container.appendChild(renderer.domElement)
 
   const controls = new OrbitControls(camera, renderer.domElement)
@@ -35,6 +46,7 @@ export const createGlobe = (
 
   const textureLoader = new THREE.TextureLoader()
   const earthTexture = textureLoader.load(earthTextureImage)
+
   const bumpMap = textureLoader.load(bumpMapImage, (bumpMapTexture) => {
     const globe = createGlobeMesh(earthTexture, globeColor)
     globe.renderOrder = 10
@@ -52,6 +64,7 @@ export const createGlobe = (
     globe.add(dataPointsGroup)
 
     let globeCloud
+    let lastFrameTime = 0
 
     const updateDataPoints = (dataPoints) => {
       while (dataPointsGroup.children.length) {
@@ -78,13 +91,19 @@ export const createGlobe = (
         globe.remove(globeCloud)
       }
 
-      globeCloud = createGlobeCloud(image, globeColor)
+      globeCloud = createGlobeCloud(image, globeColor, points, pointSize)
       globeCloud.renderOrder = 1
       globe.add(globeCloud)
     }
 
-    const animate = () => {
+    const animate = (currentTime) => {
       requestAnimationFrame(animate)
+      if (currentTime - lastFrameTime < 1000 / fpsTarget) {
+        return
+      }
+
+      lastFrameTime = currentTime
+
       globe.rotation.y += 0.002
       dataPointsGroup.children.forEach((child) => {
         if (child.name === "ringPulse") {
@@ -135,14 +154,12 @@ export const createGlobe = (
 }
 
 const createGlobeMesh = (earthTexture, specularColor) => {
-  const globeGeometry = new THREE.SphereGeometry(100, 50, 50)
+  const globeGeometry = new THREE.SphereGeometry(100, 32, 32)
   const globeMaterial = new THREE.MeshPhongMaterial({
     map: earthTexture,
     bumpScale: 0.2,
     specular: new THREE.Color(specularColor),
-    shininess: 1.5,
-    transparent: true,
-    opacity: 0.8,
+    shininess: 1,
     depthWrite: false,
   })
   return new THREE.Mesh(globeGeometry, globeMaterial)
@@ -186,7 +203,7 @@ const latLongToXYZ = (lat, long, radius) => {
 }
 
 const createSpike = (color, height, intensity, x, y, z) => {
-  const geometry = new THREE.CylinderGeometry(0.1, 0.2, height, 32)
+  const geometry = new THREE.CylinderGeometry(0.1, 0.2, height, 16)
   const material = new THREE.MeshBasicMaterial({
     color: new THREE.Color(color).multiplyScalar(intensity),
     transparent: true,
@@ -204,7 +221,7 @@ const createSpike = (color, height, intensity, x, y, z) => {
 }
 
 const createRingPulse = (color, intensity, x, y, z) => {
-  const ringGeometry = new THREE.RingGeometry(0.2, 0.5 + 3 * intensity, 32)
+  const ringGeometry = new THREE.RingGeometry(0.2, 0.5 + 3.5 * intensity, 32)
   const ringMaterial = new THREE.MeshBasicMaterial({
     map: createGlowTexture(color),
     color: new THREE.Color(color).multiplyScalar(intensity),
@@ -212,7 +229,7 @@ const createRingPulse = (color, intensity, x, y, z) => {
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     opacity: 0.6,
-    depthWrite: true,
+    depthTest: false,
   })
   const ring = new THREE.Mesh(ringGeometry, ringMaterial)
 
@@ -253,7 +270,7 @@ const createGlowTexture = (color) => {
   return new THREE.CanvasTexture(canvas)
 }
 
-const createGlobeCloud = (image, color) => {
+const createGlobeCloud = (image, color, points, pointSize) => {
   const globeCloudVerticesArray = []
   const canvas = document.createElement("canvas")
   canvas.width = image.width
@@ -262,11 +279,11 @@ const createGlobeCloud = (image, color) => {
   context.drawImage(image, 0, 0, image.width, image.height)
 
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-  const totalPoints = 15_000
+
   const phi = Math.PI * (3 - Math.sqrt(5))
 
-  for (let i = 0; i < totalPoints; i++) {
-    const y = 1 - (i / (totalPoints - 1)) * 2
+  for (let i = 0; i < points; i++) {
+    const y = 1 - (i / (points - 1)) * 2
     const radius = Math.sqrt(1 - y * y)
 
     const theta = phi * i
@@ -313,12 +330,12 @@ const createGlobeCloud = (image, color) => {
   )
 
   const globeCloudMaterial = new THREE.PointsMaterial({
-    size: 1.5,
+    size: pointSize,
     color,
-    depthWrite: true,
-    depthTest: true,
+    fog: true,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.75,
+    depthWrite: false,
   })
 
   const globeCloud = new THREE.Points(
